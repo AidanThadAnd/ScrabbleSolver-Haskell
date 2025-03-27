@@ -14,7 +14,7 @@ emptyTrie = T.empty
 
 -- Insert a list of words into the trie
 insertWords :: [String] -> Trie
-insertWords wordsList = foldr (\word trie -> T.insert (BS.pack word) () trie) emptyTrie wordsList
+insertWords = foldr (\word trie -> T.insert (BS.pack word) () trie) emptyTrie
 
 -- Check if a word exists in the trie
 searchWord :: Trie -> String -> Bool
