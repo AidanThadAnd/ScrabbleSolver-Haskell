@@ -1,30 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Trie where
+module Trie (Trie, emptyTrie, insertWords, searchWord) where
 
--- ghc --package-env=. Trie.hs to compile
---
 import qualified Data.Trie as T
 import qualified Data.ByteString.Char8 as BS
 
--- Insert words into the trie
-insertWords :: [String] -> T.Trie ()
-insertWords wordsList = foldr (\word trie -> T.insert (BS.pack word) () trie) T.empty wordsList
+-- Type alias for readability
+type Trie = T.Trie ()
 
--- Search for a word in the trie
-searchWord :: T.Trie () -> String -> Bool
+-- Create an empty trie
+emptyTrie :: Trie
+emptyTrie = T.empty
+
+-- Insert a list of words into the trie
+insertWords :: [String] -> Trie
+insertWords = foldr (\word trie -> T.insert (BS.pack word) () trie) emptyTrie
+
+-- Check if a word exists in the trie
+searchWord :: Trie -> String -> Bool
 searchWord trie word = T.member (BS.pack word) trie
-
-main :: IO ()
-main = do
-  let wordsList = ["HELLO", "WORLD", "HASKELL"]
-      trie = insertWords wordsList
-
-  -- Test cases
-  print $ searchWord trie "HELLO"   -- True
-  print $ searchWord trie "WORLD"   -- True
-  print $ searchWord trie "HASKELL" -- True
-  print $ searchWord trie "BYE"     -- False
-  print $ searchWord trie "HEL"     -- False
-  print $ searchWord trie ""        -- False
 
