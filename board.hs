@@ -1,4 +1,4 @@
-module Board (loadBoard, isValidPosition, printBoard, validateBoard) where
+module Board (loadBoard, isValidPosition, printBoard, validateBoard, boardSize, Square(..), letter) where
 
 import qualified Data.Array as A        -- Import the Data.Array module for working with arrays
 import qualified Data.Set as Set          -- Import the Data.Set module for working with sets
