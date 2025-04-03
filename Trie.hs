@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+
 
 module Trie (Trie, emptyTrie, insertWords, searchWord) where
 

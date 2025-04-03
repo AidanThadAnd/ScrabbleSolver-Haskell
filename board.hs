@@ -1,87 +1,190 @@
-module Board (loadBoard, isValidPosition, printBoard, validateBoard, boardSize, Square(..), letter) where
+{-|
+Module      : Board
+Description : Defines the Scrabble board representation and related functions.
 
-import qualified Data.Array as A        -- Import the Data.Array module for working with arrays
-import qualified Data.Set as Set          -- Import the Data.Set module for working with sets
-import System.IO.Error (catchIOError, isDoesNotExistError) -- Import error handling functions
-import Data.List (any)                  -- Import the 'any' function for checking if any element in a list satisfies a condition
+This module defines the data types for the Scrabble board ('Square', 'Bonus', 'Coord')
+and provides functions for loading a board state from a file, validating board properties
+(like size, connectivity, center usage), checking position validity, and printing the board.
+It also includes the definitions for standard Scrabble bonus square locations.
+-}
+module Board (loadBoard, isValidPosition, validateBoard, boardSize, isBoardEmpty, Square(..), Bonus(..), Coord, printBoard) where
 
--- Define constants
+import qualified Data.Array as A
+import qualified Data.Set as Set
+import System.IO (readFile)
+import System.IO.Error (catchIOError, isDoesNotExistError)
+import Data.List (any, find)
+import Data.Maybe (fromMaybe, listToMaybe)
+
+-- | Standard Scrabble board dimension (15x15).
 boardSize :: Int
-boardSize = 15                         -- Define the size of the board (15x15)
+boardSize = 15
 
+-- | Index of the center row/column.
 center :: Int
-center = 7                             -- Define the center index of the board
+center = 7
 
--- Define the Square data type
+-- | Represents the bonus multiplier types.
+data Bonus = None | DL | TL | DW | TW deriving (Show, Eq)
+
+-- | Represents a single square on the Scrabble board, containing a letter (or empty)
+--   and the potential bonus type associated with the square (active only when empty).
 data Square = Square {
-    letter :: Char,                    -- The letter on the square (' ' for empty)
-    validPlacement :: Bool             -- Indicates if a square is a valid placement for a new tile
-}
+    letter :: Char,    -- ^ The letter on the square (' ' for empty).
+    bonus :: Bonus     -- ^ The bonus multiplier for this square.
+} deriving (Show)
 
--- Load the board from a file
-loadBoard :: FilePath -> IO (A.Array (Int, Int) Square)
+-- | Type alias for board coordinates (Row, Column).
+type Coord = (Int, Int)
+
+-- | Type alias for a set of coordinates.
+type CoordSet = Set.Set Coord
+
+-- | Set of coordinates for double letter bonus squares.
+dlCoords :: CoordSet
+dlCoords = Set.fromList [(0,3), (0,11), (2,6), (2,8), (3,0), (3,7), (3,14), (6,2), (6,6), (6,8), (6,12), (7,3), (7,11), (8,2), (8,6), (8,8), (8,12), (11,0), (11,7), (11,14), (12,6), (12,8), (14,3), (14,11)]
+
+-- | Set of coordinates for triple letter bonus squares.
+tlCoords :: CoordSet
+tlCoords = Set.fromList [(1,5), (1,9), (5,1), (5,5), (5,9), (5,13), (9,1), (9,5), (9,9), (9,13), (13,5), (13,9)]
+
+-- | Set of coordinates for double word bonus squares.
+dwCoords :: CoordSet
+dwCoords = Set.fromList [(1,1), (2,2), (3,3), (4,4), (1,13), (2,12), (3,11), (4,10), (7,7), (10,4), (11,3), (12,2), (13,1), (10,10), (11,11), (12,12), (13,13)]
+
+-- | Set of coordinates for triple word bonus squares.
+twCoords :: CoordSet
+twCoords = Set.fromList [(0,0), (0,7), (0,14), (7,0), (7,14), (14,0), (14,7), (14,14)]
+
+-- | Determines the Bonus type for a given board coordinate.
+getBonusType :: Coord -- ^ The (row, col) coordinate to check.
+             -> Bonus -- ^ The bonus type.
+getBonusType coord
+    | coord `Set.member` twCoords = TW
+    | coord `Set.member` dwCoords = DW
+    | coord `Set.member` tlCoords = TL
+    | coord `Set.member` dlCoords = DL
+    | otherwise                   = None
+
+-- | Loads a board state from a text file.
+--   Expects a 15x15 grid of characters.
+--   '_' or '.' represent empty squares. Any other character represents a placed letter.
+--   Assigns bonus types to squares that are empty based on standard Scrabble layout.
+--   Throws an error if the file is not found or has incorrect dimensions.
+loadBoard :: FilePath -- ^ Path to the board file.
+          -> IO (A.Array Coord Square) -- ^ The loaded board as an Array.
 loadBoard filename = do
-    contents <- readFile filename `catchIOError` (\e -> if isDoesNotExistError e then error "File not found" else ioError e) -- Read the file contents, handling file not found errors
-    let linesBoard = lines contents     -- Split the file contents into lines.
-    let squares = [((r, c), Square (if (linesBoard !! r) !! c == '_' then ' ' else (linesBoard !! r) !! c) False) | r <- [0 .. boardSize - 1], c <- [0 .. boardSize - 1]] -- Create a list of squares from the file data
-    let updatedSquares = map (\((r, c), sq) -> ((r, c), sq { validPlacement = isValidPlacement squares r c })) squares -- Update each square's validPlacement
-    return $ A.array ((0, 0), (boardSize - 1, boardSize - 1)) updatedSquares -- Create and return an array from the updated squares
-
--- Helper function to determine valid placement for a square
-isValidPlacement :: [((Int, Int), Square)] -> Int -> Int -> Bool
-isValidPlacement squares row col =
-    if isBoardEmpty squares then row == center && col == center -- If the board is empty, only the center square is a valid placement
-    else
-        let currentSquare = lookupSquare squares row col -- Get the current square
-        in letter currentSquare == ' ' && (row == center && col == center || any (\(dr, dc) -> isValidPosition (row + dr) (col + dc) && letter (lookupSquare squares (row + dr) (col + dc)) /= ' ') [(-1, 0), (1, 0), (0, -1), (0, 1)]) --Check if the empty square is the center or adjacent to a letter
-
--- Helper function to lookup a square
-lookupSquare :: [((Int, Int), Square)] -> Int -> Int -> Square
-lookupSquare squares row col = case lookup (row, col) squares of -- Look up a square
-    Just sq -> sq
-    Nothing -> Square ' ' False -- Return an empty square if not found
-
--- Helper function to check if board is empty
-isBoardEmpty :: [((Int, Int), Square)] -> Bool
-isBoardEmpty = all (\sq -> letter (snd sq) == ' ') -- Check if all squares are empty
-
--- Check if a position is within bounds
-isValidPosition :: Int -> Int -> Bool
-isValidPosition row col = row >= 0 && row < boardSize && col >= 0 && col < boardSize -- Check if the row and column are within the board bounds
-
--- Print the board
-printBoard :: A.Array (Int, Int) Square -> IO ()
-printBoard board = mapM_ printRow [0 .. boardSize - 1] -- Print each row of the board
+    contents <- readFile filename `catchIOError` handleReadError
+    let linesBoard = lines contents
+    if length linesBoard /= boardSize || any (\line -> length line /= boardSize) linesBoard
+      then error $ "Invalid board dimensions in " ++ filename ++ ". Expected " ++ show boardSize ++ "x" ++ show boardSize
+      else do
+        -- Create a list of ((row, col), Square)
+        let squares = [ ((r, c), determineSquare r c charFromFile)
+                      | r <- [0 .. boardSize - 1]
+                      , c <- [0 .. boardSize - 1]
+                      , let charFromFile = (linesBoard !! r) !! c
+                      ]
+        -- Create the Array
+        return $ A.array ((0, 0), (boardSize - 1, boardSize - 1)) squares
   where
-    printRow r = putStrLn $ unwords [if letter (board A.! (r, c)) == ' ' then "_" else [letter (board A.! (r, c))] | c <- [0 .. boardSize - 1]] -- Print a single row
+    -- | Handle file reading errors.
+    handleReadError :: IOError -> IO String
+    handleReadError e
+      | isDoesNotExistError e = error ("Board file not found: " ++ filename)
+      | otherwise             = ioError e
 
--- Validate if the board is empty or connected
-validateBoard :: A.Array (Int, Int) Square -> Bool
+    -- | Parses a character from the file into a board character (' ' for empty).
+    parseChar :: Char -> Char
+    parseChar c | c == '_' || c == '.' = ' '
+                | otherwise            = c
+
+    -- | Determines the initial state for a square based on file input.
+    determineSquare :: Int -> Int -> Char -> Square
+    determineSquare r c charFromFile =
+        let parsedLetter = parseChar charFromFile
+            coord = (r, c)
+        in if parsedLetter /= ' ' then
+             -- If square has a letter, its bonus is considered inactive
+             Square { letter = parsedLetter, bonus = None }
+           else
+             -- If square is empty, determine if it has a bonus type
+             Square { letter = ' ', bonus = getBonusType coord }
+
+
+-- | Checks if a given (Row, Column) coordinate is within the bounds of the board.
+isValidPosition :: Int -- ^ Row index.
+                -> Int -- ^ Column index.
+                -> Bool -- ^ True if the position is on the board, False otherwise.
+isValidPosition row col =
+    row >= 0 && row < boardSize && col >= 0 && col < boardSize
+
+-- | Checks if the board array contains any letters.
+isBoardEmpty :: A.Array Coord Square -- ^ The board array.
+             -> Bool                 -- ^ True if all squares have letter ' ', False otherwise.
+isBoardEmpty board = all (\(_, sq) -> letter sq == ' ') (A.assocs board)
+
+-- | Prints the board.
+--   Empty squares are shown as '_'.
+printBoard :: A.Array Coord Square -- ^ The board array to print.
+           -> IO ()
+printBoard board = mapM_ printRow [0 .. boardSize - 1]
+  where
+    -- | Prints a single row of the board.
+    printRow :: Int -> IO ()
+    printRow r = putStrLn $ unwords [ displayChar (board A.! (r, c)) 
+                                   | c <- [0 .. boardSize - 1] ]
+    -- | Gets the character for a square.
+    displayChar :: Square -> String
+    displayChar sq = if letter sq == ' ' then "_" else [letter sq]
+
+-- | Validates the state of a loaded board according to Scrabble rules:
+--   An empty board is valid.
+--   A non-empty board is valid only if the center square is occupied and all
+--   placed tiles are connected.
+validateBoard :: A.Array Coord Square -- ^ The board array to validate.
+              -> Bool                 -- ^ True if the board state is valid, False otherwise.
 validateBoard board
-    | isBoardEmpty (A.assocs board) = True -- If the board is empty, it's valid
-    | otherwise = isValidCenter board && isBoardConnected board -- Otherwise, check if the center square is used and all letters are connected
+    | isBoardEmpty board = True -- Empty board is always valid
+    | otherwise = isValidCenter board && isBoardConnected board -- Non-empty checks
   where
-    isValidCenter b = letter (b A.! (center, center)) /= ' ' -- Check if the center square has a letter
-    isBoardConnected b = checkConnected b (center, center) Set.empty -- Check if all letters are connected
+    -- | Checks if the center square contains a letter.
+    isValidCenter :: A.Array Coord Square -> Bool
+    isValidCenter b = letter (b A.! (center, center)) /= ' ' 
 
--- Check if the board is connected using DFS
-checkConnected :: A.Array (Int, Int) Square -> (Int, Int) -> Set.Set (Int, Int) -> Bool
-checkConnected board start visited =
-    Set.size (dfs startingPoint Set.empty) == totalNonEmptySquares board -- Check if the number of visited squares equals the number of non-empty squares
+    -- | Checks if all letters on the board are connected.
+    isBoardConnected :: A.Array Coord Square -> Bool
+    isBoardConnected b = checkConnected b
+
+-- | Helper for `validateBoard`. Checks connectivity using Depth First Search.
+--   Relies on `findStartingPoint` to initiate the search.
+checkConnected :: A.Array Coord Square -- ^ The board array.
+               -> Bool                 -- ^ True if all tiles are connected, False otherwise.
+checkConnected board =
+   -- Find the first tile on the board to start the DFS from.
+   case findStartingPoint board of
+     Nothing -> isBoardEmpty board
+     -- If a starting tile is found, perform DFS and compare visited count.
+     Just startCoord -> Set.size (dfs startCoord Set.empty) == totalNonEmptySquares board
   where
-    totalNonEmptySquares b = length [() | square <- A.elems b, letter square /= ' '] -- Count the number of non-empty squares
+    -- | Counts the total number of squares with letters on the board.
+    totalNonEmptySquares :: A.Array Coord Square -> Int
+    totalNonEmptySquares b = length [() | square <- A.elems b, letter square /= ' '] 
 
-    -- DFS Traversal
-    dfs :: (Int, Int) -> Set.Set (Int, Int) -> Set.Set (Int, Int)
-    dfs (r, c) visited
-        | not (isValidPosition r c) = visited -- If the position is out of bounds, return the visited set
-        | Set.member (r, c) visited = visited -- If the position has already been visited, return the visited set
-        | letter (board A.! (r, c)) == ' ' = visited -- If the square is empty, return the visited set
-        | otherwise = foldr (\(dr, dc) acc -> dfs (r + dr, c + dc) acc) (Set.insert (r, c) visited) -- Otherwise, recursively call dfs on adjacent squares
-            [(-1, 0), (1, 0), (0, -1), (0, 1)] -- Directions: up, down, left, right
+    -- | Performs Depth First Search starting from a coordinate.
+    dfs :: Coord -> Set.Set Coord -> Set.Set Coord
+    dfs currentPos@(r, c) visitedSet
+        -- Base case: Stop if off-board
+        | not (isValidPosition r c) = visitedSet
+        -- Base case: Stop if already visited
+        | Set.member currentPos visitedSet = visitedSet
+        -- Base case: Stop if the square is empty
+        | letter (board A.! currentPos) == ' ' = visitedSet 
+        -- Recursive step: Insert current, explore neighbors
+        | otherwise = foldr (\(dr, dc) currentVisitedSet -> dfs (r + dr, c + dc) currentVisitedSet)
+                           (Set.insert currentPos visitedSet)
+                           [(-1, 0), (1, 0), (0, -1), (0, 1)] -- Neighbor directions
 
-    -- Find the starting point for DFS
-    startingPoint = findStartingPoint board
-
-    findStartingPoint :: A.Array (Int, Int) Square -> (Int, Int)
-    findStartingPoint b = head [(r, c) | r <- [0 .. boardSize - 1], c <- [0 .. boardSize - 1], letter (b A.! (r, c)) /= ' '] -- Find the first non-empty square
+    -- | Finds the coordinate of the first non-empty square.
+    findStartingPoint :: A.Array Coord Square -> Maybe Coord
+    findStartingPoint b = fmap fst $ find (\(_, sq) -> letter sq /= ' ') (A.assocs b)
