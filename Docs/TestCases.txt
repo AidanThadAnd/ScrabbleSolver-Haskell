@@ -1,0 +1,92 @@
+Test Cases:
+
+Category 1: Basic Functionality / First Move
+•	TC-1.1: Empty Board Center Play
+  o	Input: emptyBoard.txt, Rack: "HELLO"
+  o	Run: ./<solver> .\TestData\Boards\emptyBoard.txt .\TestData\dictionary.txt "HELLO"
+  o	Expected Output: Best move is HELLO, Start= Multiple starts possible, Dir=Horizontal/Vertical, Score=24.
+•	TC-1.2: No Valid First Move
+  o	Input: emptyBoard.txt, Rack: "BCDG"
+  o	Run: ./<solver> .\TestData\Boards\emptyBoard.txt .\TestData\dictionary.txt "BCDG"
+  o	Expected Output: "No valid moves found."
+
+Category 2: Adjacency Rules
+•	TC-2.1: Valid Adjacent Play (Horizontal)
+  o	Input: 2_1.txt, Rack: "SAD"
+  o	Run: ./<solver> .\TestData\Boards\2_1.txt .\TestData\dictionary.txt "SAD"
+  o	Expected Output: Best move is SAD, Start=(5,7), Dir=Horizontal, Score=16 
+•	TC-2.2: Valid Adjacent Play (Vertical)
+  o	Input: 2_2.txt, Rack: "ME"
+  o	Run: ./<solver> .\TestData\Boards\2_2.txt .\TestData\dictionary.txt "ME"
+  o	Expected Output: Best move is EM, Start=(5,8), Dir=Vertical, Score=17
+Category 3: Crossword Validation
+•	TC-3.1: Valid Multi-Crossword Play
+  o	Input: 3_1.txt, Rack: "ELAIN"
+  o	Run: ./<solver> .\TestData\Boards\3_1.txt .\TestData\dictionary.txt "ELAIN"
+  o	Expected Output: Best move is ELAIN, Start=(8,5), Dir=Horizontal, Score=20
+
+Category 4: Scoring Verification
+•	TC-4.1: Double Letter Score
+  o	Input: 4_1.txt, Rack: "I"
+  o	Run: ./<solver> .\TestData\Boards\4_1.txt .\TestData\dictionary.txt "I"
+  o	Expected Output: Best move is HI Start=(6,7), Dir=Horizontal, Score=6
+•	TC-4.2: Triple Letter Score
+  o	Input: 4_2.txt, Rack: "N"
+  o	Run: ./<solver> .\TestData\Boards\4_2.txt .\TestData\dictionary.txt "N"
+  o	Expected Output: Best move is EON, Start=(5,7), Dir=Horizontal, Score=5
+•	TC-4.3: Double Word Score
+  o	Input: validBoard.txt, Rack: "KTYBJ" 
+  o	Run: ./<solver> .\TestData\Boards\validBoard.txt .\TestData\dictionary.txt "KTYBJ"
+  o	Expected Output: Best move is KYTE or TYKE, Start=(10,4), Dir=Horizontal, Score=22 
+•	TC-4.4: Triple Word Score
+  o	Input: 4_4.txt, Rack: “LK
+  o	Run: ./<solver> .\TestData\Boards\4_4.txt .\TestData\dictionary.txt "LK"
+  o	Expected Output: Best move ELK, Start=(5,14), Dir=Horizontal, Score=21
+•	TC-4.5: Bingo Bonus
+  o	Input: emptyBoard.txt, Rack: "STAINER"
+  o	Run: ./<solver> .\TestData\Boards\emptyBoard.txt .\TestData\dictionary.txt "STAINER"
+  o	Expected Output: Best move is ANESTRI, Start=Variable, Dir= horizontal, Score=66
+•	TC-4.6: Multiple Bonuses
+  o	Input: 4_6.txt, Rack: "XS"
+  o	Run: ./<solver> .\TestData\Boards\4_6.txt .\TestData\dictionary.txt "XS"
+  o	Expected Output:  Best move is XIS, Start=(8,6), Dir=Horizontal, Score= 19
+  o	Note: Won't work with simple solver, dimple can not make non-contiguous words
+
+Category 5: Word Interaction
+•	TC-5.1: Add Prefix
+  o	Input: 5_1_2.txt, Rack: "C"
+  o	Run: ./<solver> .\TestData\Boards\5_1_2.txt .\TestData\dictionary.txt "C"
+  o	Expected Output: Best move is CLAP, Start=(7,6), Dir=Horizontal, Score=8 
+•	TC-5.2: Add Suffix
+  o	Input: 5_1_2.txt, Rack: "S"
+  o	Run: ./<solver> .\TestData\Boards\5_1_2.txt .\TestData\dictionary.txt "S"
+  o	Expected Output: Best move is LAPS, Start=(7,7), Dir=Horizontal, Score=6 
+
+Category 6: Edge Cases / Boundaries
+•	TC-6.1: Empty Rack
+  o	Input: Any board, Rack: ""
+  o	./<solver> .\TestData\Boards\validBoard.txt .\TestData\dictionary.txt ""
+  o	Expected Output: “Usage: ./main <board_file.txt> <dictionary_file.txt> <rack_string>”
+•	TC-6.2: Board Full
+  o	Input: fullBoard.txt, Rack: "A"
+  o	Run: ./<solver> .\TestData\Boards\fullBoard.txt .\TestData\dictionary.txt "A"
+  o	Expected Output: "No valid moves found."
+
+Category 7: Error Handling
+•	TC-7.1: Dictionary File Not Found
+  o	Input: Any board, Rack: "CAT", Dictionary: nonExistentDictionary.txt
+  o	Expected Output: Program exits with error message
+•	TC-7.2: Board File Not Found
+  o	Input: Board: nonExistentBoard.txt, Rack: "CAT", Dictionary: dictionary.txt
+  o	Expected Output: Program exits with error message
+•	TC-7.3: Invalid Board Dimensions
+  o	Input: Board: wrongDimsBoard.txt (e.g., 14x15 lines), Rack: "CAT", Dictionary: dictionary.txt
+  o	Run: ./<solver> .\TestData\Boards\wrongDimsBoard.txt .\TestData\dictionary.txt "CAT"
+  o	Expected Output: Program exits with error message
+•	TC-7.4: Invalid Board State (Disconnected/No Center)
+  o	Input: Board: board.txt (non-empty, center blank), Rack: "CAT", Dictionary: dictionary.txt
+  o	Expected Output: Program exits with error message
+
+Method: Execute the compiled Haskell program (./main) with various board files, dictionary files, and rack strings. 
+Compare the standard output (best move found, score, final board) against the expected results verified with external 
+tools. Check standard error for expected error messages.
