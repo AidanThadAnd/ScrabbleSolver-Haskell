@@ -3,4 +3,4 @@ The solver has certain package dependencies.
 -	Cabal must be installed along with the GHC compiler
 -	To compile run: ghc Main.hs -o  solver -package array -package containers -package bytestring
 -	If there are issues with the package environment run:
-    -	cabal install --lib bytestring-trie --package-env 
+    -	cabal install --lib bytestring-trie --package-env .
